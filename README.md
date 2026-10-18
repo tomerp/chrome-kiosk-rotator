@@ -4,10 +4,11 @@ Turn a Chrome window into a rotating display of your dashboards, status pages, a
 
 Chrome Kiosk Rotator keeps one tab open per site and switches between them, so pages can retain their existing browser sessions. A compact green-on-black overlay shows the current page and time to the next switch.
 
-**Status: community preview (0.1.0).** Install from source today. A settings interface and a Chrome Web Store release are planned; this version has not been submitted to the store. Browser and packaged-extension acceptance testing is still pending. Automated tests use simulated Chrome APIs and page environments.
+**Status: community preview (0.2.0).** Install from source today. A settings interface is included; a Chrome Web Store release is planned. This version has not been submitted to the store. Browser and packaged-extension acceptance testing is still pending. Automated tests use simulated Chrome APIs and page environments.
 
 ## Features
 
+- A settings screen to add, remove, rename, and reorder pages without editing code.
 - Configurable rotation interval, including an eight-second default.
 - Reuse already open tabs when the full URL matches, or create new ones without replacing your current page.
 - Arrow keys to switch; Space to pause or resume.
@@ -19,41 +20,35 @@ Chrome Kiosk Rotator keeps one tab open per site and switches between them, so p
 ## Install the preview
 
 1. Download this repository using **Code → Download ZIP**, then extract it, or clone it.
-2. Edit `extension/config.js` with your website URLs and preferred timing.
+2. Keep the extracted folder somewhere permanent. No build step or configuration-file edit is needed.
 3. Open `chrome://extensions` in Chrome 120 or newer.
 4. Enable **Developer mode**, choose **Load unpacked**, and select the **extension** subfolder.
-5. Pin Chrome Kiosk Rotator to the toolbar, then click its icon in the window you want to use.
+5. Settings opens on first install. Add your pages, choose timing and refresh intervals, then select **Save settings** and **Start display**. To return later, right-click the extension toolbar icon and select **Options**.
 6. Enter Chrome fullscreen using your operating system's normal fullscreen control.
 
-The example configuration uses `example.com` and `example.org`, so it is safe to share. Replace them with useful pages before using your display.
+The example configuration uses `example.com` and `example.org`, so it is safe to share. Replace them with useful pages in Settings before using your display.
 
 This extension manages one rotation window at a time. It does not launch Chrome in kiosk mode, lock down the operating system, or prevent users from leaving fullscreen. Use a dedicated Chrome profile/window for an unattended display. Automatic launch, login and recovery after a reboot are separate deployment tasks.
 
-## Configure
+## Configure in Settings
 
-```js
-globalThis.KIOSK_CONFIG = {
-  rotationSeconds: 8,
-  sites: [
-    {
-      url: "https://example.com/",
-      label: "Dashboard",
-      refreshEverySeconds: 0
-    },
-    {
-      url: "https://example.org/",
-      label: "Status",
-      refreshEverySeconds: 300
-    }
-  ]
-};
-```
+Right-click the extension icon and choose **Options**, or use **Extension options** on its Details page in `chrome://extensions`.
 
-Use unique HTTP or HTTPS URLs. `rotationSeconds` accepts values from 1 through 86400. `refreshEverySeconds` is optional: zero means no forced reload. Refresh checks happen on tab transitions; they are not independent schedules and do not refresh the active page or a single-page cycle.
+- **Add page:** enter a full HTTP or HTTPS URL and an optional display name.
+- **Reorder:** use the up/down arrows. Page names and refresh intervals move with the URL.
+- **Rotation timing:** set how many seconds each page stays on screen (1–86400, including fractional seconds).
+- **Refresh every:** choose seconds, minutes, or hours for each page. Zero means never force a reload.
+- **Save settings:** saves locally in your Chrome profile and stops the current cycle, leaving tabs open.
+- **Start display:** starts the saved lineup in this window. Save or discard pending edits first.
+- **Reload saved:** discard unsaved edits and return to the saved configuration.
 
-After editing configuration, reload the extension on `chrome://extensions`, then click its toolbar icon to start. Keep personal URLs, credentials, and private dashboard screenshots out of commits, issues, and shared ZIPs. Configuration is currently a source file; a settings screen is on the roadmap.
+Settings persist through worker restarts, browser restarts, and extension updates. They are not synced between devices. If settings are open in two tabs, a stale tab cannot silently overwrite newer changes; reload saved settings first. Invalid or duplicate URLs, empty lineups, and invalid timing values are rejected before a running cycle is changed.
 
-Existing tabs are reused only when the complete URL matches. After a cycle starts, a tab stays assigned to its configured site even if that site redirects it through login. A later start may create another tab if its URL has changed. The old substring-based `match` option is no longer used.
+Refresh checks happen on tab transitions. They are not independent schedules and do not refresh the active page or a single-page cycle.
+
+Existing tabs are reused only when the complete URL matches. After a cycle starts, a tab stays assigned to its configured site even if that site redirects it through login. A later start may create another tab if its URL has changed.
+
+`extension/config.js` supplies first-run defaults only. Existing source installations that customized that file use those values until their first settings save; saved settings then take precedence. Keep bundled defaults public and keep private URLs out of commits, screenshots, and shared archives.
 
 ## Controls
 
@@ -84,7 +79,7 @@ The extension does not send page contents or configuration to a project server. 
 
 ## Optional popup handler
 
-For Weather Underground only, add this to that site's configuration:
+The advanced Weather Underground handler remains a source-level option for first-run defaults. Existing popup rules are preserved when that site is edited or reordered in Settings. The current settings screen does not expose popup-rule editing. The site configuration is:
 
 ```js
 popupRules: {
@@ -110,7 +105,7 @@ Tests cover timing requests, recovery, worker restarts, duplicate messages, paus
 ## Roadmap
 
 1. Test the preview in real Chrome with representative dashboards, including a packaged build and long-running sessions.
-2. Add a settings screen for URLs, ordering, intervals, import/export, and overlay preferences.
+2. Extend the settings screen with import/export and overlay preferences.
 3. Request access only to sites the user chooses and provide clear start/pause/stop status.
 4. Add icons, screenshots, accessibility checks, and operating-system deployment guides.
 5. Publish the same open-source project as a reviewed Chrome Web Store extension.

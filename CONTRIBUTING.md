@@ -9,4 +9,4 @@ Small, focused improvements and reproducible bug reports are welcome.
 
 Keep the extension dependency-free where practical. Use public example URLs, preserve the distinction between normal short timers and slower recovery, and avoid artificial worker keepalive tricks. Do not include credentials, personal configuration, private page screenshots, or sensitive console output.
 
-The current priority is validating the preview, followed by a settings interface and optional site permissions for Chrome Web Store distribution.
+The current priority is validating the preview, extending the settings interface and adding optional site permissions for Chrome Web Store distribution.

@@ -10,7 +10,7 @@ function fixture() {
   const data = {}, alarms = new Map(), reloads = [], messages = [];
   const tabs = [{ id: 1, windowId: 1, url: 'https://unrelated.example/', active: true }];
   const chrome = {
-    runtime: { onMessage: event(), onStartup: event(), onInstalled: event() },
+    runtime: { id: "test-extension", getURL: file => `chrome-extension://test-extension/${file}`, openOptionsPage: async () => {}, onMessage: event(), onStartup: event(), onInstalled: event() },
     action: { onClicked: event(), setBadgeText: async () => {}, setTitle: async () => {} },
     storage: { local: { get: async key => ({ [key]: structuredClone(data[key]) }),
       set: async value => Object.assign(data, structuredClone(value)) } },
@@ -52,7 +52,10 @@ function fixture() {
   function send(message, id, frameId = 0) {
     return new Promise(resolve => chrome.runtime.onMessage.listeners[0](message, { tab: { id }, frameId }, resolve));
   }
-  return { chrome, data, alarms, tabs, reloads, messages, flush, send, boot,
+  function settings(message, sender = { id: chrome.runtime.id, url: chrome.runtime.getURL('options.html') }) {
+    return new Promise(resolve => chrome.runtime.onMessage.listeners[0](message, sender, resolve));
+  }
+  return { chrome, data, alarms, tabs, reloads, messages, flush, send, boot, settings,
     get ctx() { return ctx; }, get now() { return now; }, advance: ms => now += ms,
     state: () => structuredClone(data.kioskCycleV2),
     start: () => emit(chrome.action.onClicked, { id: 1, windowId: 1 }),
@@ -163,4 +166,85 @@ test('rapid stop and restart keep state versions increasing', async () => {
   const s = f.state(); await f.send({ type: 'setPaused', paused: true }, s.activeTabId);
   await f.start(); const stopped = f.state().version;
   await f.start(); assert.ok(f.state().version > stopped);
+});
+
+const newConfig = { rotationSeconds: 12.5, sites: [
+  { url: 'https://c.example/', label: 'Monitor', refreshEverySeconds: 300 },
+  { url: 'https://a.example/', label: 'Dashboard', refreshEverySeconds: 3600 }
+] };
+test('first-run settings use bundled defaults without persisting personal data', async () => {
+  const f = fixture(); const result = await f.settings({ type: 'getSettings' });
+  assert.equal(result.success, true); assert.equal(result.config.rotationSeconds, 8);
+  assert.equal(result.config.sites.length, 3); assert.equal(result.revision, null);
+  assert.equal(f.data.kioskSettingsV1, undefined);
+});
+test('saved settings survive worker and browser restarts, and drive page order, timing and refresh', async () => {
+  const f = fixture();
+  const result = await f.settings({ type: 'saveSettings', config: newConfig, revision: null });
+  assert.equal(result.success, true);
+  f.boot(); await f.emit(f.chrome.runtime.onStartup);
+  const loaded = await f.settings({ type: 'getSettings' });
+  assert.equal(loaded.config.sites[0].label, 'Monitor');
+  assert.equal(loaded.config.sites[0].refreshEverySeconds, 300);
+  await f.start(); const s = f.state();
+  assert.equal(s.nextSwitchAt, f.now + 12500);
+  assert.equal(f.tabs.find(t => t.id === s.activeTabId).url, 'https://c.example/');
+  f.advance(301000);
+  await f.send({ type: 'activateRelativeTab', offset: 1 }, s.activeTabId); await f.flush();
+  assert.ok(f.reloads.includes(s.activeTabId));
+});
+test('save stops an active rotation before replacing site order and leaves tabs open', async () => {
+  const f = fixture(); await f.start(); const s = f.state(); const count = f.tabs.length;
+  const result = await f.settings({ type: 'saveSettings', config: newConfig, revision: null });
+  assert.equal(result.success, true); assert.equal(f.state().entries.length, 0);
+  assert.equal(f.tabs.length, count); assert.equal(f.alarms.size, 0);
+  f.advance(30000); await f.send({ type: 'rotationDue', token: s.token }, s.activeTabId);
+  assert.equal(f.state().entries.length, 0);
+});
+test('invalid save leaves running cycle and prior configuration intact', async () => {
+  const f = fixture(); await f.start(); const before = f.state();
+  const result = await f.settings({ type: 'saveSettings', revision: null, config: { rotationSeconds: 0, sites: [] } });
+  assert.equal(result.success, false); assert.match(result.error, /interval/);
+  assert.deepEqual(f.state(), before); assert.equal(f.data.kioskSettingsV1, undefined);
+});
+test('ordinary webpages, forged extension paths, and subframes cannot change settings or start a cycle', async () => {
+  const f = fixture();
+  for (const sender of [
+    { id: 'test-extension', url: 'https://example.com', tab: { id: 1 }, frameId: 0 },
+    { id: 'other-extension', url: 'chrome-extension://test-extension/options.html' },
+    { id: 'test-extension', url: 'https://evil.test/?next=chrome-extension://test-extension/options.html' }
+  ]) {
+    for (const type of ['getSettings', 'saveSettings', 'startCycle']) {
+      assert.equal((await f.settings({ type, config: newConfig, revision: null, windowId: 1 }, sender)).success, false);
+    }
+  }
+  assert.equal(f.data.kioskSettingsV1, undefined);
+});
+test('concurrent settings tabs cannot silently overwrite each other', async () => {
+  const f = fixture();
+  const [a, b] = await Promise.all([
+    f.settings({ type: 'saveSettings', revision: null, config: newConfig }),
+    f.settings({ type: 'saveSettings', revision: null, config: { ...newConfig, rotationSeconds: 30 } })
+  ]);
+  assert.equal(a.success, true); assert.equal(b.success, false); assert.match(b.error, /another tab/);
+  assert.equal(f.data.kioskSettingsV1.config.rotationSeconds, 12.5);
+  assert.equal((await f.settings({ type: 'startCycle', revision: null, windowId: 1 })).success, false);
+  assert.equal((await f.settings({ type: 'startCycle', revision: a.revision, windowId: 1 })).success, true);
+});
+test('editing a site preserves its existing optional popup rules', async () => {
+  const f = fixture(); const config = structuredClone(newConfig);
+  config.sites[0].popupRules = { enabled: true, handler: 'wunderground-bx' };
+  await f.settings({ type: 'saveSettings', revision: null, config });
+  const result = await f.settings({ type: 'getSettings' });
+  assert.equal(result.config.sites[0].popupRules.handler, 'wunderground-bx');
+});
+test('a failed settings write is reported and does not cache unsaved configuration', async () => {
+  const f = fixture(); const originalSet = f.chrome.storage.local.set;
+  f.chrome.storage.local.set = async value => {
+    if (value.kioskSettingsV1) throw new Error('Storage unavailable');
+    return originalSet(value);
+  };
+  const result = await f.settings({ type: 'saveSettings', revision: null, config: newConfig });
+  assert.equal(result.success, false); assert.match(result.error, /Storage unavailable/);
+  const current = await f.settings({ type: 'getSettings' }); assert.equal(current.config.rotationSeconds, 8);
 });

@@ -1,5 +1,5 @@
-// Public examples only. Keep personal URLs out of commits and shared archives.
-// Load the extension/ folder after editing this file.
+// First-run defaults. User changes are saved locally through the settings screen.
+// Keep these public examples free of personal URLs.
 globalThis.KIOSK_CONFIG = {
   rotationSeconds: 8,
   sites: [

@@ -1,12 +1,12 @@
 # Privacy
 
-Chrome Kiosk Rotator 0.1.0 runs locally in Chrome. It has no project-operated server, analytics, advertising SDK, or remote-code loader.
+Chrome Kiosk Rotator 0.2.0 runs locally in Chrome. It has no project-operated server, analytics, advertising SDK, or remote-code loader.
 
 ## Local information
 
-- Website URLs and display labels are read from the extension's bundled configuration.
+- Website URLs, display labels, rotation timing, and per-page refresh intervals are saved in local Chrome extension storage. Public bundled examples are used until the first save. Settings are not synced to other devices.
 - Chrome local extension storage contains cycle tab/window IDs, site indexes, refresh timestamps, pause state, and timing metadata.
-- Local cycle state is reset on browser startup and installation/update. Chrome manages removal of extension storage when the extension is uninstalled.
+- Local cycle state is reset on browser startup and installation/update. Saved page settings are retained through restarts and updates. Chrome manages removal of extension storage when the extension is uninstalled.
 - The extension reads tab URLs to find configured pages and uses page scripts to display controls. The optional Weather Underground handler inspects popup elements to locate an explicit close button.
 - The optional developer inspector logs page URLs, element text, styles, and iframe URLs to the local developer console. It is not included in the extension package. Review that output before sharing it.
 

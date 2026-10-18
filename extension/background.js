@@ -2,13 +2,47 @@ importScripts("config.js", "core.js");
 
 const stateKey = "kioskCycleV2";
 const alarmName = "kioskRecovery";
+const settingsKey = "kioskSettingsV1";
+let savedSettings = null;
 let queue = Promise.resolve();
 function serial(task) {
-  const result = queue.then(task);
+  const result = queue.then(async () => {
+    savedSettings = (await chrome.storage.local.get(settingsKey))[settingsKey] || null;
+    return task();
+  });
   queue = result.catch((error) => console.warn("Kiosk operation failed:", error.message));
   return result;
 }
-function configuration() { return KioskCore.validateConfig(globalThis.KIOSK_CONFIG); }
+function configuration() { return KioskCore.validateConfig(savedSettings?.config || globalThis.KIOSK_CONFIG); }
+function isSettingsPage(sender) {
+  return sender.id === chrome.runtime.id && sender.url === chrome.runtime.getURL("options.html");
+}
+async function handleSettings(message, sender) {
+  if (!isSettingsPage(sender)) return { success: false, error: "Open the extension settings to make changes." };
+  if (message.type === "getSettings") {
+    return { success: true, config: configuration(), revision: savedSettings?.revision || null };
+  }
+  if (message.type === "saveSettings") {
+    const config = KioskCore.validateConfig(message.config);
+    if (message.revision !== (savedSettings?.revision || null)) {
+      return { success: false, error: "Settings changed in another tab. Reload saved settings before saving again." };
+    }
+    // Stop with the old configuration before changing site indexes. Leave pages open.
+    await stop(await readState());
+    const next = { config, revision: crypto.randomUUID() };
+    await chrome.storage.local.set({ [settingsKey]: next });
+    savedSettings = next;
+    return { success: true, ...next };
+  }
+  if (message.type === "startCycle") {
+    if (message.revision !== (savedSettings?.revision || null)) {
+      return { success: false, error: "Settings changed in another tab. Reload saved settings first." };
+    }
+    if (!Number.isInteger(message.windowId)) throw new Error("Open settings in a Chrome window to start.");
+    await setupCycle(message.windowId);
+    return { success: true };
+  }
+}
 function emptyState() {
   return { windowId: null, entries: [], activeTabId: null, paused: false,
     nextSwitchAt: null, token: null, version: Date.now() };
@@ -118,6 +152,7 @@ async function removeTab(tabId) {
   await commit(state);
 }
 async function handleMessage(message, sender) {
+  if (["getSettings", "saveSettings", "startCycle"].includes(message.type)) return handleSettings(message, sender);
   const state = await readState();
   const tabId = sender.tab?.id;
   if (sender.frameId !== 0 || !Number.isInteger(tabId)) return { success: false };
@@ -141,8 +176,8 @@ async function handleMessage(message, sender) {
   return { success: true };
 }
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!["getCycleState", "rotationDue", "activateRelativeTab", "setPaused"].includes(message?.type)) return;
-  serial(() => handleMessage(message, sender)).then(sendResponse, () => sendResponse({ success: false }));
+  if (!["getCycleState", "rotationDue", "activateRelativeTab", "setPaused", "getSettings", "saveSettings", "startCycle"].includes(message?.type)) return;
+  serial(() => handleMessage(message, sender)).then(sendResponse, (error) => sendResponse({ success: false, error: error.message }));
   return true;
 });
 chrome.action.onClicked.addListener((tab) => {
@@ -186,4 +221,9 @@ chrome.windows.onRemoved.addListener((windowId) => {
 });
 // Tab IDs are session-specific. A browser restart intentionally requires Start.
 chrome.runtime.onStartup.addListener(() => { serial(async () => stop(await readState())); });
-chrome.runtime.onInstalled.addListener(() => { serial(async () => stop(await readState())); });
+chrome.runtime.onInstalled.addListener((details) => {
+  serial(async () => {
+    await stop(await readState());
+    if (details?.reason === "install") await chrome.runtime.openOptionsPage();
+  });
+});
