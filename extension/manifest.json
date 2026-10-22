@@ -3,7 +3,7 @@
   "name": "Kiosk Rotator",
   "version": "0.3.1",
   "minimum_chrome_version": "120",
-  "description": "Rotate loaded website tabs on dashboard and kiosk displays, with a countdown and keyboard controls.",
+  "description": "Automatically rotate dashboards, status pages, and websites on one unattended display.",
   "permissions": [
     "alarms",
     "storage",

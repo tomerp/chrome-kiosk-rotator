@@ -4,20 +4,22 @@
 Kiosk Rotator
 
 ## Short description
-Rotate loaded website tabs on dashboard and kiosk displays, with a countdown and keyboard controls.
+Automatically rotate dashboards, status pages, and websites on one unattended display.
 
 ## Detailed description
-Turn a browser window into a rotating display of your dashboards, status pages, and other websites.
+Multiple dashboards. One unattended display.
 
-Kiosk Rotator keeps each page in its own tab and switches between them at an interval you choose. Set up your lineup in Settings, start the display, and enter fullscreen when you're ready.
+Automatically cycle through dashboards, status pages, and information sites on a shared screen, without someone switching tabs.
 
-YOUR PAGES, YOUR PACE
+Choose the pages, set the rotation interval, and start the display. Kiosk Rotator keeps each page loaded in its own tab and rotates through the lineup automatically while the browser stays open and the computer stays awake.
+
+BUILD YOUR ROTATING LINEUP
 • Add, name, remove, and reorder pages without editing files.
 • Choose the rotation interval, from one second to 24 hours.
 • Set optional refresh intervals for individual pages. Refresh checks happen during page transitions and reload only inactive pages.
 • Show the countdown overlay, or hide it for a clean display.
 
-CONTROLS WITHIN REACH
+WHEN YOU NEED TO MAKE AN ADJUSTMENT
 • Start, pause, resume, and stop from the toolbar popup.
 • Use Left/Right to switch pages and Space to pause or resume when a display page has focus. Shortcuts leave text entry and form controls alone.
 • Switching to an unrelated tab in the display window pauses rotation.

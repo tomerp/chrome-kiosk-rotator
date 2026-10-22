@@ -5,6 +5,7 @@
 - Rename the displayed extension to Kiosk Rotator; retain the repository and folder names.
 - Add an original display-and-loop icon, toolbar icons, and matching Settings/popup branding.
 - Prepare store images, listing text, privacy disclosures, and reviewer instructions.
+- Center store messaging on automatically rotating dashboards and information sites on an unattended display.
 - Clarify local data handling and the distinction between unpacked and store acceptance.
 - Rotation, permission requests, and saved configuration behavior are unchanged.
 

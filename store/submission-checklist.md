@@ -6,7 +6,7 @@
 - Store icon: `store-icon-128.png`.
 - Required small promo image: `promo-small-440x280.png`.
 - Optional marquee: `promo-marquee-1400x560.png`.
-- Screenshots: the three `screenshot-*.png` files, all 1280×800. Suggested order: toolbar, settings, pages.
+- Screenshots: the three `screenshot-*.png` files, all 1280×800. Suggested order: rotation overview, settings, pages.
 - `icon-preview-512.png` is a review preview, not the requested 128px store icon.
 
 ## Prepared
@@ -23,7 +23,7 @@
 - [ ] Reload 0.3.1 after the overnight test; confirm the new name/icon and retained settings.
 - [ ] Verify Pause/Resume/Stop and settings save/reopen in installed Chrome.
 - [ ] Verify denied/revoked access, managed page reload, browser restart, and refresh behavior.
-- [ ] Review listing screenshots against the installed build. These show the actual shipped HTML/CSS/JS with public example configuration through a local API fixture; they are not evidence of store installation or approval. The toolbar image adds explanatory framing around the real popup UI.
+- [ ] Review listing screenshots against the installed build. These show the actual shipped HTML/CSS/JS with public example configuration through a local API fixture; they are not evidence of store installation or approval. The rotation image adds explanatory framing around the real Settings lineup.
 - [ ] Check the live privacy/support links and complete the dashboard fields with the included text.
 - [ ] Review and make the dashboard's data-use certifications.
 - [ ] Select Unlisted for the initial release. All visibility modes still require review.

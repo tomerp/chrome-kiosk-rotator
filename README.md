@@ -1,6 +1,6 @@
 # Kiosk Rotator
 
-Turn a Chrome window into a rotating display of your dashboards, status pages, and other websites.
+Automatically rotate dashboards, status pages, and information sites on one unattended display.
 
 Kiosk Rotator keeps one tab open per site and switches between them, so pages can retain their existing browser sessions. An optional compact green-on-black overlay shows the current page and time to the next switch.
 
