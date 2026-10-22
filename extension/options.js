@@ -8,7 +8,7 @@
     $('message').classList.toggle('error', error);
   }
   async function request(message) {
-    if (!globalThis.chrome?.runtime?.id) throw new Error('Open this page from the installed Chrome Kiosk Rotator extension.');
+    if (!globalThis.chrome?.runtime?.id) throw new Error('Open this page from the installed Kiosk Rotator extension.');
     const response = await chrome.runtime.sendMessage(message);
     if (!response?.success) throw new Error(response?.error || 'The extension did not respond. Reload this page and try again.');
     return response;

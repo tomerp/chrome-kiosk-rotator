@@ -1,10 +1,10 @@
-# Chrome Kiosk Rotator
+# Kiosk Rotator
 
 Turn a Chrome window into a rotating display of your dashboards, status pages, and other websites.
 
-Chrome Kiosk Rotator keeps one tab open per site and switches between them, so pages can retain their existing browser sessions. An optional compact green-on-black overlay shows the current page and time to the next switch.
+Kiosk Rotator keeps one tab open per site and switches between them, so pages can retain their existing browser sessions. An optional compact green-on-black overlay shows the current page and time to the next switch.
 
-**Status: community preview (0.3.0).** Install from source today. A settings interface is included; a Chrome Web Store release is planned. This version has not been submitted to the store. Browser and packaged-extension acceptance testing is still pending. Automated tests use simulated Chrome APIs and page environments.
+**Status: community preview (0.3.1).** Install from source today. A settings interface is included; a Chrome Web Store release is planned. This version has not been submitted to the store. Browser and packaged-extension acceptance testing is still pending. Automated tests use simulated Chrome APIs and page environments.
 
 ## Features
 
@@ -109,11 +109,15 @@ npm test
 
 Tests cover timing requests, recovery, worker restarts, duplicate messages, pause/resume, tab removal and site identity, exact URL matching, keyboard behavior, content visibility, navigation-cache restoration, and reinjection. They do not replace real Chrome acceptance tests. See the [test checklist](docs/testing.md) and [contribution guide](CONTRIBUTING.md).
 
+## Store submission materials
+
+Version 0.3.1 adds the Kiosk Rotator name and icon. The store listing, privacy-field text, reviewer instructions, and acceptance checklist are in [store/](store/submission-checklist.md). Submission and overnight/store-installed testing are still pending.
+
 ## Roadmap
 
 1. Test the preview in real Chrome with representative dashboards, including a packaged build and long-running sessions.
 2. Extend the settings screen with import/export.
-3. Add icons, screenshots, accessibility checks, and operating-system deployment guides.
+3. Complete accessibility checks and add operating-system deployment guides.
 4. Publish the same open-source project as a reviewed Chrome Web Store extension.
 
 Feedback and focused contributions are welcome. When reporting problems, include Chrome/OS versions, rotation interval, expected behavior, and a public reproduction URL when possible.

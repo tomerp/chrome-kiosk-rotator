@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.1 — Store submission preparation
+
+- Rename the displayed extension to Kiosk Rotator; retain the repository and folder names.
+- Add an original display-and-loop icon, toolbar icons, and matching Settings/popup branding.
+- Prepare store images, listing text, privacy disclosures, and reviewer instructions.
+- Clarify local data handling and the distinction between unpacked and store acceptance.
+- Rotation, permission requests, and saved configuration behavior are unchanged.
+
+
 ## 0.3.0 — Site permissions and toolbar controls
 
 - Request optional website access for configured hosts when saving or starting; remove unused grants when pages are removed.

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>Kiosk Rotator — a display in a continuous loop</title>
+  <rect x="16" y="16" width="96" height="96" rx="24" fill="#142d29"/>
+  <path d="M64 34a30 30 0 1 0 30 30" fill="none" stroke="#d3f8b6" stroke-width="7" stroke-linecap="round"/>
+  <path d="M53 25l11 9-11 9" fill="none" stroke="#d3f8b6" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="48" y="51" width="32" height="23" rx="4" fill="#f5f7f1"/>
+  <path d="M59 81h10M64 74v7" fill="none" stroke="#f5f7f1" stroke-width="4" stroke-linecap="round"/>
+</svg>

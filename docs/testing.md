@@ -11,7 +11,7 @@ Run `npm test` with Node.js 20+. These tests execute the real extension scripts 
 - The 0.3 Chrome UI harness passed overlay hide/save/reload persistence, denied-access draft retention, and popup Start/Pause/Resume/Stop status checks. This also used simulated extension APIs, not real Chrome permission prompts.
 - The browser automation environment blocks `chrome://extensions`, so loading and testing the installed extension requires a user handoff. No browser protections were changed.
 
-The owner reported the 0.2 settings version working in Chrome. The expanded acceptance checks below, including the new 0.3 permissions and popup, still require installed-browser testing.
+The owner reported the 0.2 settings version working in Chrome and subsequently confirmed 0.3.0 site permission approval, rotation, and hiding the overlay in installed Chrome. Overnight testing is pending. The expanded acceptance checks below, including the new 0.3 permissions and popup, still require installed-browser testing.
 
 ## Installed settings acceptance — pending
 
