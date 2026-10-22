@@ -25,18 +25,18 @@ WHEN YOU NEED TO MAKE AN ADJUSTMENT
 • Switching to an unrelated tab in the display window pauses rotation.
 • Stopping leaves your tabs open.
 
-LOCAL AND OPEN SOURCE
+SETTINGS SAVED LOCALLY
 • No extension account, project server, advertising, or analytics.
 • Settings stay in your local browser profile; they are not synced between devices.
 • Website access is requested for the hosts you configure, when you save or start.
-• Source code and support: https://github.com/tomerp/chrome-kiosk-rotator
+• Support and project information: https://github.com/tomerp/chrome-kiosk-rotator
 
 BEFORE YOU START
 Kiosk Rotator manages one display window at a time. It does not lock down the computer, launch the browser, sign into websites, or automatically resume after a browser restart. Start the display again after restarting or updating the extension.
 
 Rotation timing is best-effort. Sleep, slow or restricted pages, and browser throttling can delay switching; recovery may take 30 seconds or more. A single-page display does not auto-refresh. Websites retain their own login requirements and privacy practices.
 
-For use with Google Chrome™ 120 or later. Google Chrome is a trademark of Google LLC. Kiosk Rotator is an independent open-source project and is not affiliated with or endorsed by Google.
+For use with Google Chrome™ 120 or later. Google Chrome is a trademark of Google LLC. Kiosk Rotator is an independent project and is not affiliated with or endorsed by Google.
 
 ## Suggested category and language
 Productivity (choose the closest matching category available in the dashboard).

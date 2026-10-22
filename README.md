@@ -118,7 +118,7 @@ Version 0.3.1 adds the Kiosk Rotator name and icon. The store listing, privacy-f
 1. Test the preview in real Chrome with representative dashboards, including a packaged build and long-running sessions.
 2. Extend the settings screen with import/export.
 3. Complete accessibility checks and add operating-system deployment guides.
-4. Publish the same open-source project as a reviewed Chrome Web Store extension.
+4. Publish the extension through the Chrome Web Store.
 
 Feedback and focused contributions are welcome. When reporting problems, include Chrome/OS versions, rotation interval, expected behavior, and a public reproduction URL when possible.
 
