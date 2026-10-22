@@ -60,3 +60,18 @@ test('reinjection reuses listeners and overlay instead of duplicating timers', (
   const p = page(); vm.runInContext(fs.readFileSync(path.join(__dirname, '../extension/content.js'), 'utf8'), p.context);
   assert.equal(p.timers.size, 1); assert.equal(p.nodes.size, 1);
 });
+test('hiding the overlay leaves short rotation timers and keyboard controls working', () => {
+  const p = page({ showOverlay: false });
+  assert.equal(p.nodes.size, 0); assert.equal(p.timers.size, 1); assert.equal(p.intervals.size, 0);
+  [...p.timers.values()][0].fn();
+  assert.ok(p.messages.some(m => m.type === 'rotationDue'));
+  let prevented = false;
+  p.events.keydown({ code: 'Space', preventDefault: () => prevented = true });
+  assert.equal(prevented, true);
+  assert.ok(p.messages.some(m => m.type === 'setPaused' && m.paused));
+});
+test('overlay can be hidden and shown again without duplicating timers', () => {
+  const p = page();
+  p.push({ showOverlay: false, version: 2 }); assert.equal(p.nodes.size, 0); assert.equal(p.timers.size, 1);
+  p.push({ showOverlay: true, version: 3 }); assert.equal(p.nodes.size, 1); assert.equal(p.timers.size, 1);
+});

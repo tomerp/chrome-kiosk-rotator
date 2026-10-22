@@ -33,11 +33,12 @@
     clearInterval(countdownTimer);
     clearPopupDismissalWindow();
     if (!managed) { ui?.host.remove(); ui = null; return; }
-    ui ||= injectOverlay();
+    if (state.showOverlay === false) { ui?.host.remove(); ui = null; }
+    else ui ||= injectOverlay();
     updateStatus();
     updateCountdown();
     if (document.visibilityState !== "visible" || !active) return;
-    countdownTimer = setInterval(updateCountdown, 100);
+    if (ui) countdownTimer = setInterval(updateCountdown, 100);
     if (!paused && Number.isFinite(nextSwitchAt)) {
       const expectedToken = token;
       rotationTimer = setTimeout(() => {

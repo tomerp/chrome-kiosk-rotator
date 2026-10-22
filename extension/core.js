@@ -23,7 +23,20 @@
       }
       return { ...site, url: url.href, label: String(site.label || url.hostname), refreshEverySeconds };
     });
-    return { rotationSeconds, sites };
+    return { rotationSeconds, sites, showOverlay: raw?.showOverlay !== false };
+  }
+  function permissionOrigins(config) {
+    // Chrome host grants cover all paths and ports; never include subdomain wildcards.
+    return [...new Set(config.sites.map((site) => {
+      const url = new URL(site.url);
+      return `${url.protocol}//${url.hostname}/*`;
+    }))];
+  }
+  function allowedPage(url, config) {
+    try {
+      const target = new URL(url);
+      return permissionOrigins(config).includes(`${target.protocol}//${target.hostname}/*`);
+    } catch { return false; }
   }
   function urlMatchesSite(value, site) {
     try {
@@ -40,5 +53,5 @@
       /^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/.test(node?.tagName || "") ||
       ["textbox", "combobox", "slider", "spinbutton", "button"].includes(node?.getAttribute?.("role")));
   }
-  globalThis.KioskCore = { validateConfig, urlMatchesSite, shouldIgnoreKey };
+  globalThis.KioskCore = { validateConfig, permissionOrigins, allowedPage, urlMatchesSite, shouldIgnoreKey };
 })();

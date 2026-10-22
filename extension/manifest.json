@@ -1,40 +1,27 @@
 {
   "manifest_version": 3,
   "name": "Chrome Kiosk Rotator",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "minimum_chrome_version": "120",
   "description": "Rotate loaded website tabs on dashboard and kiosk displays, with a countdown and keyboard controls.",
   "permissions": [
     "alarms",
     "storage",
-    "tabs",
     "scripting"
-  ],
-  "host_permissions": [
-    "http://*/*",
-    "https://*/*"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Start or stop kiosk rotation"
+    "default_title": "Chrome Kiosk Rotator",
+    "default_popup": "popup.html"
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "http://*/*",
-        "https://*/*"
-      ],
-      "js": [
-        "core.js",
-        "content.js"
-      ],
-      "run_at": "document_idle"
-    }
-  ],
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
-  }
+  },
+  "optional_host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ]
 }

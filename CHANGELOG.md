@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 — Site permissions and toolbar controls
+
+- Request optional website access for configured hosts when saving or starting; remove unused grants when pages are removed.
+- Remove the broad tabs permission and all-site static content scripts. Inject controls only in managed tabs on configured hosts.
+- Stop rotation when required site access is revoked; remove old broad grants on update/startup.
+- Add a toolbar popup with status, Start, Pause/Resume, Stop, and Settings. Resume returns to the display window.
+- Add a saved option to hide the countdown overlay without disabling rotation or keyboard shortcuts.
+- Preserve existing settings and default overlay visibility through the update.
+- Cover permissions, popup actions, hidden-overlay rotation, and migration in automated tests.
+
+
 ## 0.2.0 — Settings screen
 
 - Add, remove, rename, and reorder pages through a full-page options screen.

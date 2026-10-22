@@ -10,7 +10,7 @@
 </head>
 <body>
   <main>
-    <header class="masthead"><a class="brand" href="options.html" aria-label="Chrome Kiosk Rotator settings"><span class="brand-mark" aria-hidden="true">↻</span><span>CHROME KIOSK ROTATOR</span></a><span class="version">COMMUNITY PREVIEW · 0.2</span></header>
+    <header class="masthead"><a class="brand" href="options.html" aria-label="Chrome Kiosk Rotator settings"><span class="brand-mark" aria-hidden="true">↻</span><span>CHROME KIOSK ROTATOR</span></a><span class="version">COMMUNITY PREVIEW · 0.3</span></header>
     <section class="intro">
       <div><p class="eyebrow">YOUR DISPLAY, ON REPEAT</p><h1>A place for every page.</h1><p class="lede">Choose what’s on screen. We’ll keep it moving.</p></div>
       <div class="loop-preview" aria-hidden="true"><span>01</span><i></i><span>02</span><i></i><span>03</span><b>↻</b></div>
@@ -22,20 +22,25 @@
           <div><p class="eyebrow">THE PACE</p><h2 id="timing-title">Rotation timing</h2><p>How long each page stays on screen.</p></div>
           <div><label for="rotation">Switch pages every</label><div class="number-unit"><input id="rotation" name="rotationSeconds" type="number" min="1" max="86400" step="any" required aria-describedby="timing-help"><span>seconds</span></div><p id="timing-help" class="hint">1 second to 24 hours. Timing may vary on slow pages.</p></div>
         </section>
+        <section class="panel display-options" aria-labelledby="display-title">
+          <div><p class="eyebrow">ON SCREEN</p><h2 id="display-title">Countdown overlay</h2><p>Hide the bottom bar for a clean display. Keyboard controls still work.</p></div>
+          <label class="checkbox-label"><input id="show-overlay" type="checkbox" checked> Show countdown overlay</label>
+        </section>
         <section class="pages" aria-labelledby="pages-title">
           <div class="section-heading"><div><p class="eyebrow">THE LINEUP</p><h2 id="pages-title">Pages <span id="page-count" class="count">0</span></h2></div><button id="add-page" type="button" class="secondary">+ Add page</button></div>
           <p class="section-description">Pages appear in this order, then loop back to the beginning. Use the arrows to reorder.</p>
           <ol id="page-list"></ol>
           <div id="empty" class="empty" hidden><strong>Your display starts here.</strong><p>Add a dashboard, status page, or any website you want to see.</p></div>
+          <p class="access-note">When you save or start, Chrome may ask for access to the websites you selected. Access covers all pages and ports on each exact host, not unrelated sites.</p>
           <p class="refresh-note">Refresh reloads a page while it’s off screen. Set <strong>0</strong> to never force a reload. A single-page display won’t auto-refresh.</p>
         </section>
         <footer class="save-bar"><div><strong id="save-state">Loading settings…</strong><p>Saved on this device. Saving stops the current rotation and keeps your tabs open.</p></div><div class="save-actions"><button id="reload" class="text-button" type="button">Reload saved</button><button id="save" class="primary" type="submit">Save settings</button></div></footer>
-        <section class="launch"><div><h2>Ready to put it on screen?</h2><p>Start in this window, then enter fullscreen. The toolbar icon stops or restarts your display.</p></div><button id="start" type="button" class="secondary">Start display <span aria-hidden="true">↗</span></button></section>
+        <section class="launch"><div><h2>Ready to put it on screen?</h2><p>Start in this window, then enter fullscreen. Use the toolbar popup to start, pause, resume, or stop.</p></div><button id="start" type="button" class="secondary">Start display <span aria-hidden="true">↗</span></button></section>
       </fieldset>
     </form>
     <p id="message" role="status" aria-live="polite" tabindex="-1"></p>
     <p id="fatal" role="alert" hidden>Settings couldn’t load. <button id="retry" type="button" class="text-button">Try again</button></p>
-    <p class="footnote">Local settings. No account needed. <span>Right-click the extension icon → Options to return here.</span></p>
+    <p class="footnote">Local settings. No account needed. <span>Toolbar icon → Settings to return here.</span></p>
   </main>
   <template id="page-template">
     <li class="page-card">

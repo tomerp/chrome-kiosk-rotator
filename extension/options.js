@@ -1,6 +1,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   const form = $('settings-form'), editor = $('editor'), list = $('page-list');
+  let currentConfig = null;
   let sites = [], revision = null, baseline = '', dirty = false, busy = false, loaded = false;
   function report(text, error = false) {
     $('message').textContent = text;
@@ -24,7 +25,7 @@
     });
   }
   function snapshot() {
-    return JSON.stringify({ rotation: $('rotation').value, sites });
+    return JSON.stringify({ rotation: $('rotation').value, showOverlay: $('show-overlay').checked, sites });
   }
   function updateDirty() {
     dirty = loaded && snapshot() !== baseline;
@@ -93,6 +94,8 @@
     setBusy(true); report(''); $('fatal').hidden = true;
     try {
       const result = await request({ type: 'getSettings' });
+      currentConfig = result.config;
+      $('show-overlay').checked = result.config.showOverlay;
       sites = draftFrom(result.config); revision = result.revision;
       $('rotation').value = result.config.rotationSeconds;
       render(); baseline = snapshot(); loaded = true;
@@ -101,6 +104,7 @@
       $('fatal').hidden = false;
     } finally { setBusy(false); }
   }
+  $('show-overlay').addEventListener('change', () => { updateDirty(); report(''); });
   $('rotation').addEventListener('input', () => { updateDirty(); report(''); });
   $('add-page').addEventListener('click', () => {
     sites.push({ url: '', label: '', refreshValue: '0', refreshUnit: '1' });
@@ -115,14 +119,18 @@
     if (busy || !loaded || !dirty || !form.reportValidity()) return;
     let config;
     try {
-      config = KioskCore.validateConfig({ rotationSeconds: $('rotation').value, sites: sites.map((site) => {
+      config = KioskCore.validateConfig({ rotationSeconds: $('rotation').value, showOverlay: $('show-overlay').checked, sites: sites.map((site) => {
         const { refreshValue, refreshUnit, ...saved } = site;
         return { ...saved, refreshEverySeconds: refreshValue === '' ? '' : Number(refreshValue) * Number(refreshUnit) };
       }) });
     } catch (error) { report(error.message, true); $('message').focus(); return; }
     setBusy(true); report('Saving…');
     try {
+      // The permission prompt must be invoked directly in this user gesture, before other awaits.
+      const granted = await chrome.permissions.request({ origins: KioskCore.permissionOrigins(config) });
+      if (!granted) throw new Error('Site access was not granted. Your changes are still here; allow access to save them.');
       const result = await request({ type: 'saveSettings', config, revision });
+      currentConfig = result.config;
       revision = result.revision; sites = draftFrom(result.config);
       $('rotation').value = result.config.rotationSeconds;
       render(); baseline = snapshot();
@@ -134,6 +142,8 @@
     if (dirty || busy) return;
     setBusy(true); report('Starting display…');
     try {
+      const granted = await chrome.permissions.request({ origins: KioskCore.permissionOrigins(currentConfig) });
+      if (!granted) throw new Error('Site access was not granted. Allow access to start your display.');
       const window = await chrome.windows.getCurrent();
       await request({ type: 'startCycle', revision, windowId: window.id });
       report('Display started. Use the toolbar icon to stop, or Space on a display page to pause.');

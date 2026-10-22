@@ -7,7 +7,9 @@ const dir = path.join(__dirname, '../extension');
 function event() { const listeners = []; return { listeners, addListener: fn => listeners.push(fn) }; }
 function fixture() {
   let now = 1000000, uuid = 0, nextId = 20;
-  const data = {}, alarms = new Map(), reloads = [], messages = [];
+  const data = {}, alarms = new Map(), reloads = [], messages = [], injections = [];
+  const grants = new Set(['https://a.example/*', 'https://b.example/*', 'https://c.example/*']);
+  function hasGrant(origin) { return grants.has(origin) || grants.has('<all_urls>') || grants.has('https://*/*'); }
   const tabs = [{ id: 1, windowId: 1, url: 'https://unrelated.example/', active: true }];
   const chrome = {
     runtime: { id: "test-extension", getURL: file => `chrome-extension://test-extension/${file}`, openOptionsPage: async () => {}, onMessage: event(), onStartup: event(), onInstalled: event() },
@@ -15,10 +17,21 @@ function fixture() {
     storage: { local: { get: async key => ({ [key]: structuredClone(data[key]) }),
       set: async value => Object.assign(data, structuredClone(value)) } },
     alarms: { onAlarm: event(), clear: async key => alarms.delete(key), create: async (key, value) => alarms.set(key, value) },
-    scripting: { executeScript: async () => {} },
-    windows: { onRemoved: event() },
+    scripting: { executeScript: async options => injections.push(options.target.tabId) },
+    permissions: {
+      onRemoved: event(), onAdded: event(),
+      contains: async ({ origins }) => origins.every(hasGrant),
+      getAll: async () => ({ origins: [...grants] }),
+      remove: async ({ origins }) => {
+        origins.forEach(origin => grants.delete(origin));
+        chrome.permissions.onRemoved.listeners.forEach(fn => fn({ origins }));
+        return true;
+      }
+    },
+    windows: { onRemoved: event(), update: async () => {} },
     tabs: {
-      onActivated: event(), onRemoved: event(),
+      onActivated: event(), onRemoved: event(), onUpdated: event(),
+      get: async id => { const tab = tabs.find(t => t.id === id); if (!tab) throw new Error("Missing tab"); return { ...tab }; },
       query: async query => tabs.filter(t => t.windowId === query.windowId && (!query.active || t.active)),
       create: async options => { const t = { ...options, id: nextId++ }; tabs.push(t); return t; },
       update: async (id, options) => {
@@ -34,7 +47,7 @@ function fixture() {
   };
   let ctx;
   function boot() {
-    for (const api of [chrome.runtime, chrome.action, chrome.alarms, chrome.windows, chrome.tabs]) {
+    for (const api of [chrome.runtime, chrome.action, chrome.alarms, chrome.windows, chrome.tabs, chrome.permissions]) {
       for (const value of Object.values(api)) if (value?.listeners) value.listeners.length = 0;
     }
     ctx = vm.createContext({ chrome, URL, console, crypto: { randomUUID: () => `token-${++uuid}` },
@@ -48,17 +61,25 @@ function fixture() {
   }
   boot();
   async function flush() { for (let i = 0; i < 5; i++) await vm.runInContext('queue', ctx); }
-  async function emit(source, value) { source.listeners.forEach(fn => fn(value)); await flush(); }
+  async function emit(source, ...args) { source.listeners.forEach(fn => fn(...args)); await flush(); }
   function send(message, id, frameId = 0) {
     return new Promise(resolve => chrome.runtime.onMessage.listeners[0](message, { tab: { id }, frameId }, resolve));
   }
   function settings(message, sender = { id: chrome.runtime.id, url: chrome.runtime.getURL('options.html') }) {
     return new Promise(resolve => chrome.runtime.onMessage.listeners[0](message, sender, resolve));
   }
-  return { chrome, data, alarms, tabs, reloads, messages, flush, send, boot, settings,
+  const popup = message => settings(message, { id: chrome.runtime.id, url: chrome.runtime.getURL('popup.html') });
+  async function toggle() {
+    const current = await popup({ type: 'getControlState' });
+    const result = current.running ? await popup({ type: 'controlCycle', action: 'stop' }) :
+      await popup({ type: 'startCycle', revision: current.revision, windowId: 1 });
+    assert.equal(result.success, true, result.error);
+    await flush();
+  }
+  return { chrome, data, alarms, tabs, reloads, messages, flush, send, boot, settings, popup, grants, injections,
     get ctx() { return ctx; }, get now() { return now; }, advance: ms => now += ms,
     state: () => structuredClone(data.kioskCycleV2),
-    start: () => emit(chrome.action.onClicked, { id: 1, windowId: 1 }),
+    start: toggle,
     alarm: () => emit(chrome.alarms.onAlarm, { name: 'kioskRecovery' }),
     remove: async id => { tabs.splice(tabs.findIndex(t => t.id === id), 1); await emit(chrome.tabs.onRemoved, id); }, emit };
 }
@@ -247,4 +268,98 @@ test('a failed settings write is reported and does not cache unsaved configurati
   const result = await f.settings({ type: 'saveSettings', revision: null, config: newConfig });
   assert.equal(result.success, false); assert.match(result.error, /Storage unavailable/);
   const current = await f.settings({ type: 'getSettings' }); assert.equal(current.config.rotationSeconds, 8);
+});
+
+test('popup pause, resume and stop control the running cycle without closing tabs', async () => {
+  const f = fixture(); await f.start(); const count = f.tabs.length;
+  let result = await f.popup({ type: 'controlCycle', action: 'pause' });
+  assert.equal(result.paused, true); assert.equal(f.state().nextSwitchAt, null);
+  f.advance(1000);
+  result = await f.popup({ type: 'controlCycle', action: 'resume', revision: null });
+  await f.flush(); assert.equal(result.paused, false); assert.equal(f.state().nextSwitchAt, f.now + 8000);
+  result = await f.popup({ type: 'controlCycle', action: 'stop' });
+  assert.equal(result.running, false); assert.equal(f.tabs.length, count);
+});
+test('popup resume returns to the managed display after user switches away', async () => {
+  const f = fixture(); await f.start(); const first = f.state().entries[0].tabId;
+  await f.chrome.tabs.update(1, { active: true }); await f.flush();
+  assert.equal(f.state().paused, true);
+  const result = await f.popup({ type: 'controlCycle', action: 'resume', revision: null });
+  await f.flush(); assert.equal(result.success, true); assert.equal(f.tabs.find(t => t.active).id, first);
+});
+test('popup control endpoints reject content scripts and other extension pages', async () => {
+  const f = fixture(); await f.start();
+  const sender = { id: f.chrome.runtime.id, url: 'https://a.example/', tab: { id: f.state().activeTabId }, frameId: 0 };
+  for (const message of [{ type: 'getControlState' }, { type: 'controlCycle', action: 'stop' }]) {
+    assert.equal((await f.settings(message, sender)).success, false);
+    assert.equal((await f.settings(message)).success, false);
+  }
+  assert.ok(f.state().entries.length);
+  assert.equal((await f.popup({ type: 'saveSettings', config: newConfig, revision: null })).success, false);
+});
+test('missing permission blocks start and save without changing tabs or stored settings', async () => {
+  const f = fixture(); f.grants.clear();
+  const before = f.tabs.length;
+  const status = await f.popup({ type: 'getControlState' }); assert.equal(status.missingOrigins.length, 3);
+  for (const message of [{ type: 'startCycle', revision: null, windowId: 1 }, { type: 'saveSettings', revision: null, config: newConfig }]) {
+    const result = await f.settings(message);
+    assert.equal(result.success, false); assert.match(result.error, /Allow access/);
+  }
+  assert.equal(f.tabs.length, before); assert.equal(f.data.kioskSettingsV1, undefined);
+});
+test('revoking a configured website stops the cycle and clears its overlays and alarm', async () => {
+  const f = fixture(); await f.start();
+  await f.chrome.permissions.remove({ origins: ['https://b.example/*'] }); await f.flush();
+  assert.equal(f.state().entries.length, 0); assert.equal(f.alarms.size, 0);
+  assert.ok(f.messages.slice(-3).every(m => !m.message.state.managed));
+});
+test('saving a smaller lineup releases unused host access', async () => {
+  const f = fixture(); const result = await f.settings({ type: 'saveSettings', config: newConfig, revision: null });
+  await f.flush(); assert.equal(result.success, true);
+  assert.deepEqual([...f.grants].sort(), ['https://a.example/*', 'https://c.example/*']);
+});
+test('updating from older versions removes broad host grants and preserves saved settings', async () => {
+  const f = fixture();
+  await f.settings({ type: 'saveSettings', config: { ...newConfig, showOverlay: false }, revision: null });
+  f.grants.add('<all_urls>'); f.grants.add('https://*/*'); f.grants.add('http://*/*');
+  await f.emit(f.chrome.runtime.onInstalled, { reason: 'update' });
+  assert.deepEqual([...f.grants].sort(), ['https://a.example/*', 'https://c.example/*']);
+  const result = await f.settings({ type: 'getSettings' });
+  assert.equal(result.config.showOverlay, false); assert.equal(result.config.sites[0].label, 'Monitor');
+});
+test('host scopes deduplicate paths and ports without granting subdomains or another protocol', () => {
+  const f = fixture(); const config = { sites: [
+    { url: 'https://example.com/path' }, { url: 'https://example.com:8443/other' },
+    { url: 'http://127.0.0.1:3000/' }, { url: 'https://sub.example.com/' }
+  ] };
+  const patterns = Array.from(f.ctx.KioskCore.permissionOrigins(config));
+  assert.deepEqual(patterns, ['https://example.com/*', 'http://127.0.0.1/*', 'https://sub.example.com/*']);
+  assert.equal(f.ctx.KioskCore.allowedPage('https://evil.example.com/', config), false);
+  assert.equal(f.ctx.KioskCore.allowedPage('http://example.com/', config), false);
+  assert.equal(f.ctx.KioskCore.allowedPage('https://example.com:8000/new', config), true);
+});
+test('scripts are reinjected after managed reloads but not into unrelated tabs or redirect hosts', async () => {
+  const f = fixture(); await f.start(); const id = f.state().activeTabId;
+  f.injections.length = 0;
+  await f.emit(f.chrome.tabs.onUpdated, id, { status: 'complete' });
+  assert.deepEqual(f.injections, [id]);
+  await f.emit(f.chrome.tabs.onUpdated, 1, { status: 'complete' });
+  assert.deepEqual(f.injections, [id]);
+  f.tabs.find(t => t.id === id).url = 'https://unconfigured.example/';
+  await f.emit(f.chrome.tabs.onUpdated, id, { status: 'complete' });
+  assert.deepEqual(f.injections, [id]);
+});
+test('overlay visibility persists and is included in managed page state', async () => {
+  const f = fixture(); await f.settings({ type: 'saveSettings', revision: null, config: { ...newConfig, showOverlay: false } });
+  f.boot(); await f.start();
+  assert.equal((await f.send({ type: 'getCycleState' }, f.state().activeTabId)).showOverlay, false);
+  assert.equal((await f.popup({ type: 'getControlState' })).config.showOverlay, false);
+});
+test('manifest has optional hosts, no always-on content scripts, and no broad tab-reading permission', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(dir, 'manifest.json'), 'utf8'));
+  assert.equal(manifest.host_permissions, undefined);
+  assert.equal(manifest.content_scripts, undefined);
+  assert.equal(manifest.permissions.includes('tabs'), false);
+  assert.equal(manifest.action.default_popup, 'popup.html');
+  for (const file of ['popup.html', 'popup.js', 'popup.css']) assert.ok(fs.existsSync(path.join(dir, file)));
 });

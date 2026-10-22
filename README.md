@@ -2,9 +2,9 @@
 
 Turn a Chrome window into a rotating display of your dashboards, status pages, and other websites.
 
-Chrome Kiosk Rotator keeps one tab open per site and switches between them, so pages can retain their existing browser sessions. A compact green-on-black overlay shows the current page and time to the next switch.
+Chrome Kiosk Rotator keeps one tab open per site and switches between them, so pages can retain their existing browser sessions. An optional compact green-on-black overlay shows the current page and time to the next switch.
 
-**Status: community preview (0.2.0).** Install from source today. A settings interface is included; a Chrome Web Store release is planned. This version has not been submitted to the store. Browser and packaged-extension acceptance testing is still pending. Automated tests use simulated Chrome APIs and page environments.
+**Status: community preview (0.3.0).** Install from source today. A settings interface is included; a Chrome Web Store release is planned. This version has not been submitted to the store. Browser and packaged-extension acceptance testing is still pending. Automated tests use simulated Chrome APIs and page environments.
 
 ## Features
 
@@ -14,7 +14,9 @@ Chrome Kiosk Rotator keeps one tab open per site and switches between them, so p
 - Arrow keys to switch; Space to pause or resume.
 - Optional per-site refresh, performed while the tab is inactive.
 - Optional Weather Underground popup-close handler, disabled in the public example.
-- Start and stop with the extension toolbar button. Stopping leaves your tabs open.
+- Toolbar popup with Start, Pause/Resume, Stop, current status, and Settings. Stopping leaves your tabs open.
+- Hide the countdown overlay while keeping rotation and keyboard controls.
+- Website access requested only for the hosts you configure.
 - Local operation: no project backend, accounts, analytics, or remote extension code.
 
 ## Install the preview
@@ -23,7 +25,7 @@ Chrome Kiosk Rotator keeps one tab open per site and switches between them, so p
 2. Keep the extracted folder somewhere permanent. No build step or configuration-file edit is needed.
 3. Open `chrome://extensions` in Chrome 120 or newer.
 4. Enable **Developer mode**, choose **Load unpacked**, and select the **extension** subfolder.
-5. Settings opens on first install. Add your pages, choose timing and refresh intervals, then select **Save settings** and **Start display**. To return later, right-click the extension toolbar icon and select **Options**.
+5. Settings opens on first install. Add your pages, choose timing and refresh intervals, then select **Save settings** and **Start display**. Approve access to your selected websites when prompted. To return later, open the toolbar popup and select **Settings**.
 6. Enter Chrome fullscreen using your operating system's normal fullscreen control.
 
 The example configuration uses `example.com` and `example.org`, so it is safe to share. Replace them with useful pages in Settings before using your display.
@@ -32,12 +34,13 @@ This extension manages one rotation window at a time. It does not launch Chrome 
 
 ## Configure in Settings
 
-Right-click the extension icon and choose **Options**, or use **Extension options** on its Details page in `chrome://extensions`.
+Open the extension toolbar popup and choose **Settings**, right-click the icon and choose **Options**, or use **Extension options** on its Details page in `chrome://extensions`.
 
 - **Add page:** enter a full HTTP or HTTPS URL and an optional display name.
 - **Reorder:** use the up/down arrows. Page names and refresh intervals move with the URL.
 - **Rotation timing:** set how many seconds each page stays on screen (1–86400, including fractional seconds).
 - **Refresh every:** choose seconds, minutes, or hours for each page. Zero means never force a reload.
+- **Show countdown overlay:** uncheck for a clean display; rotation and keyboard controls remain available.
 - **Save settings:** saves locally in your Chrome profile and stops the current cycle, leaving tabs open.
 - **Start display:** starts the saved lineup in this window. Save or discard pending edits first.
 - **Reload saved:** discard unsaved edits and return to the saved configuration.
@@ -46,7 +49,7 @@ Settings persist through worker restarts, browser restarts, and extension update
 
 Refresh checks happen on tab transitions. They are not independent schedules and do not refresh the active page or a single-page cycle.
 
-Existing tabs are reused only when the complete URL matches. After a cycle starts, a tab stays assigned to its configured site even if that site redirects it through login. A later start may create another tab if its URL has changed.
+Existing tabs are reused only when the complete URL matches. After a cycle starts, a tab stays assigned to its configured site even if that site redirects it through login. A later start may create another tab if its URL has changed. Page timers and controls require a configured, permitted host; a redirect to another host uses the slower recovery alarm. Configure the final destination URL after login when possible.
 
 `extension/config.js` supplies first-run defaults only. Existing source installations that customized that file use those values until their first settings save; saved settings then take precedence. Keep bundled defaults public and keep private URLs out of commits, screenshots, and shared archives.
 
@@ -54,14 +57,14 @@ Existing tabs are reused only when the complete URL matches. After a cycle start
 
 | Control | Action |
 | --- | --- |
-| Toolbar icon | Start a cycle, or stop the existing cycle |
+| Toolbar icon | Open status and Start, Pause/Resume, Stop, Settings controls |
 | Right / Left arrow | Next / previous page |
 | Space | Pause / resume |
 | Switch to a non-kiosk tab in the same window | Pause rotation |
 
-Return to a kiosk tab and press Space to resume after switching away. Shortcuts do not intercept typing, text composition, modified key combinations, or focused links and form controls. Overlay and shortcuts are enabled only in tabs belonging to the running cycle.
+Use Resume in the popup to return to the display, or return to a kiosk tab and press Space after switching away. Shortcuts do not intercept typing, text composition, modified key combinations, or focused links and form controls. Shortcuts work even when the overlay is hidden. Page controls run only in managed tabs on configured, permitted hosts.
 
-After a browser restart or extension update, start the cycle again using the toolbar button. Restart recovery is planned for a later release.
+After a browser restart or extension update, open the toolbar popup and select Start. Restart recovery is planned for a later release.
 
 ## How short intervals work
 
@@ -73,9 +76,13 @@ A Chrome alarm acts as a recovery mechanism if the page cannot run its timer. Th
 
 ## Permissions and privacy
 
-This preview requests access to HTTP and HTTPS websites so users can configure arbitrary dashboards. A small content script loads on those pages and checks whether its tab is in the cycle; the overlay and page timer activate only for managed tabs. `tabs` supports tab discovery and switching, `scripting` initializes existing tabs, `storage` keeps local cycle state, and `alarms` provides recovery.
+Website access is optional at installation. Saving or starting requests access to the exact HTTP/HTTPS hosts in your lineup. Chrome grants cover every path and port on each host; HTTP and HTTPS are separate, and subdomains are not automatically included. Declining a request preserves your edits and prevents starting with missing access. Removing a host from Settings and saving removes its unused grant. Revoking required access stops the display.
 
-The extension does not send page contents or configuration to a project server. Websites you display still make their own network requests and follow their own privacy practices. See [privacy details](PRIVACY.md). Site-scoped optional permissions are planned before the store release.
+There is no broad `tabs` permission or static script on all websites. `scripting` loads the page timer and controls only in managed tabs on configured hosts; matching host grants let the extension read URLs to reuse tabs. `storage` keeps settings and cycle state locally; `alarms` provides recovery.
+
+When updating from 0.2, reload the existing extension to preserve settings. Old broad website grants are removed on update/startup; the next Save or Start may ask you to approve the selected hosts again.
+
+The extension does not send page contents or configuration to a project server. Websites you display still make their own network requests and follow their own privacy practices. See [privacy details](PRIVACY.md).
 
 ## Optional popup handler
 
@@ -105,10 +112,9 @@ Tests cover timing requests, recovery, worker restarts, duplicate messages, paus
 ## Roadmap
 
 1. Test the preview in real Chrome with representative dashboards, including a packaged build and long-running sessions.
-2. Extend the settings screen with import/export and overlay preferences.
-3. Request access only to sites the user chooses and provide clear start/pause/stop status.
-4. Add icons, screenshots, accessibility checks, and operating-system deployment guides.
-5. Publish the same open-source project as a reviewed Chrome Web Store extension.
+2. Extend the settings screen with import/export.
+3. Add icons, screenshots, accessibility checks, and operating-system deployment guides.
+4. Publish the same open-source project as a reviewed Chrome Web Store extension.
 
 Feedback and focused contributions are welcome. When reporting problems, include Chrome/OS versions, rotation interval, expected behavior, and a public reproduction URL when possible.
 

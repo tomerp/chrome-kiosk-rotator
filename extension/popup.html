@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chrome Kiosk Rotator</title>
+  <link rel="stylesheet" href="popup.css">
+  <script src="core.js" defer></script>
+  <script src="popup.js" defer></script>
+</head>
+<body>
+  <header><span class="mark" aria-hidden="true">↻</span><div><h1>Kiosk Rotator</h1><p>YOUR DISPLAY, ON REPEAT</p></div><button id="settings" class="settings" aria-label="Open settings">Settings</button></header>
+  <main>
+    <section class="status-panel" aria-labelledby="status"><div class="status-heading"><span id="light" class="light" aria-hidden="true"></span><h2 id="status">Loading…</h2></div><p id="detail">Getting your display ready.</p><div class="meta"><span id="pages">— pages</span><span id="timing">— seconds</span><span id="overlay">Overlay on</span></div></section>
+    <p id="access" hidden>Chrome will ask for access to the websites in your saved lineup when you start.</p>
+    <div class="controls"><button id="start" class="primary" disabled>Start display</button><button id="pause" class="primary" hidden disabled>Pause</button><button id="stop" class="secondary" disabled>Stop</button></div>
+    <p id="message" role="status" aria-live="polite"></p>
+    <footer>Left / Right to switch · Space to pause<br><span>Keyboard controls work with the overlay hidden.</span></footer>
+  </main>
+</body>
+</html>

@@ -1,0 +1,33 @@
+:root { color-scheme:light; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; color:#142d29; background:#f5f7f1; font-size:13px; }
+* { box-sizing:border-box; }
+body { margin:0; width:360px; }
+header { display:flex; align-items:center; gap:10px; padding:20px 20px 18px; border-bottom:1px solid #dce4dd; }
+.mark { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; background:#142d29; color:#d3f8b6; font-size:28px; }
+h1 { font-size:16px; margin:0 0 5px; font-weight:650; letter-spacing:-.3px; }
+header p { font-size:8px; letter-spacing:1px; color:#64756e; margin:0; }
+button { font:inherit; font-weight:600; cursor:pointer; border-radius:8px; border:0; padding:12px; }
+button:focus-visible { outline:3px solid #558a60; outline-offset:3px; }
+button:disabled { opacity:.45; cursor:default; }
+.settings { margin-left:auto; font-size:11px; background:transparent; color:#52685c; padding:8px; }
+.settings:hover { background:#e7eee1; }
+main { padding:18px 20px; }
+.status-panel { border:1px solid #dce4dd; background:#fff; border-radius:12px; padding:18px 16px; }
+.status-heading { display:flex; align-items:center; gap:8px; }
+.light { width:8px; height:8px; border-radius:50%; background:#94a18c; }
+.light.running { background:#398c46; box-shadow:0 0 0 4px #e9f4df; }
+.light.paused { background:#b58a25; }
+h2 { font-size:18px; font-weight:600; margin:0; letter-spacing:-.5px; }
+#detail { color:#64756e; font-size:12px; line-height:1.5; margin:9px 0 14px; overflow-wrap:anywhere; }
+.meta { display:flex; flex-wrap:wrap; gap:7px; }
+.meta span { background:#eef3e8; color:#526549; padding:4px 7px; border-radius:5px; font-size:10px; }
+.controls { display:grid; grid-template-columns:1fr 85px; gap:9px; margin-top:16px; }
+.primary { background:#142d29; color:#f5ffe9; }
+.primary:hover:not(:disabled) { background:#285143; }
+.secondary { background:#fff; color:#52685c; border:1px solid #bdcbc0; }
+.secondary:hover:not(:disabled) { background:#edf3e8; }
+#access { background:#e8f0e0; border-radius:8px; padding:11px 12px; font-size:11px; color:#496044; line-height:1.5; margin:12px 0 0; }
+#message { color:#953b27; line-height:1.5; font-size:12px; margin:0; }
+#message:not(:empty) { margin-top:12px; }
+footer { color:#64756e; font-size:10px; line-height:1.7; text-align:center; margin-top:18px; }
+footer span { font-size:9px; }
+[hidden] { display:none!important; }

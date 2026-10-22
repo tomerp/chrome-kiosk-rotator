@@ -14,11 +14,64 @@ function serial(task) {
   return result;
 }
 function configuration() { return KioskCore.validateConfig(savedSettings?.config || globalThis.KIOSK_CONFIG); }
-function isSettingsPage(sender) {
-  return sender.id === chrome.runtime.id && sender.url === chrome.runtime.getURL("options.html");
+function isExtensionPage(sender, pages) {
+  return sender.id === chrome.runtime.id && pages.some((page) => sender.url === chrome.runtime.getURL(page));
+}
+async function missingOrigins(config = configuration()) {
+  const origins = KioskCore.permissionOrigins(config);
+  const checks = await Promise.all(origins.map(async (origin) =>
+    await chrome.permissions.contains({ origins: [origin] }) ? null : origin));
+  return checks.filter(Boolean);
+}
+async function requireAccess(config = configuration()) {
+  if ((await missingOrigins(config)).length) throw new Error("Allow access to your selected websites, then try again.");
+}
+async function pruneAccess() {
+  const desired = new Set(KioskCore.permissionOrigins(configuration()));
+  const granted = await chrome.permissions.getAll();
+  const unused = (granted.origins || []).filter((origin) => !desired.has(origin));
+  if (unused.length) await chrome.permissions.remove({ origins: unused });
+}
+async function injectTab(tabId) {
+  try {
+    const tab = await chrome.tabs.get(tabId);
+    if (!KioskCore.allowedPage(tab.url, configuration())) return;
+    await chrome.scripting.executeScript({ target: { tabId }, files: ["core.js", "content.js"] });
+  } catch { /* Restricted/error pages use the recovery alarm. */ }
+}
+async function controlState() {
+  const state = await readState();
+  const config = configuration();
+  const entry = state.entries.find((item) => item.tabId === state.activeTabId);
+  return { success: true, running: state.entries.length > 0, paused: state.paused,
+    windowId: state.windowId, totalSites: state.entries.length,
+    currentLabel: entry ? config.sites[entry.siteIndex]?.label : null,
+    config, revision: savedSettings?.revision || null, missingOrigins: await missingOrigins(config) };
+}
+async function handleControl(message, sender) {
+  if (!isExtensionPage(sender, ["popup.html"])) return { success: false, error: "Open the toolbar popup to control the display." };
+  if (message.type === "getControlState") return controlState();
+  const state = await readState();
+  if (message.action === "stop") await stop(state);
+  else if (message.action === "pause") {
+    if (!state.entries.length) throw new Error("Start a display first.");
+    state.paused = true;
+    resetDeadline(state);
+    await commit(state);
+  } else if (message.action === "resume") {
+    if (!state.entries.length) throw new Error("Start a display first.");
+    if (message.revision !== (savedSettings?.revision || null)) throw new Error("Settings changed. Reopen the popup and try again.");
+    await requireAccess();
+    const current = await activeTab(state);
+    const entry = state.entries.find((item) => item.tabId === current?.id) || state.entries[0];
+    state.paused = false;
+    await selectTab(state, entry.tabId);
+    await chrome.windows.update(state.windowId, { focused: true });
+  } else throw new Error("Unknown display action.");
+  return controlState();
 }
 async function handleSettings(message, sender) {
-  if (!isSettingsPage(sender)) return { success: false, error: "Open the extension settings to make changes." };
+  if (!isExtensionPage(sender, message.type === "startCycle" ? ["options.html", "popup.html"] : ["options.html"])) return { success: false, error: "Open the extension settings to make changes." };
   if (message.type === "getSettings") {
     return { success: true, config: configuration(), revision: savedSettings?.revision || null };
   }
@@ -27,11 +80,13 @@ async function handleSettings(message, sender) {
     if (message.revision !== (savedSettings?.revision || null)) {
       return { success: false, error: "Settings changed in another tab. Reload saved settings before saving again." };
     }
+    await requireAccess(config);
     // Stop with the old configuration before changing site indexes. Leave pages open.
     await stop(await readState());
     const next = { config, revision: crypto.randomUUID() };
     await chrome.storage.local.set({ [settingsKey]: next });
     savedSettings = next;
+    await pruneAccess();
     return { success: true, ...next };
   }
   if (message.type === "startCycle") {
@@ -56,12 +111,14 @@ function describe(state, tabId) {
   return { managed: index >= 0, active: tabId === state.activeTabId,
     currentIndex: index, totalSites: state.entries.length,
     currentSite: index >= 0 ? configuration().sites[state.entries[index].siteIndex] : null,
+    showOverlay: configuration().showOverlay,
     paused: state.paused, nextSwitchAt: state.nextSwitchAt,
     token: state.token, version: state.version };
 }
 async function commit(state, previousEntries = []) {
   state.version += 1;
   await chrome.storage.local.set({ [stateKey]: state });
+  await chrome.action.setBadgeText({ text: state.entries.length ? (state.paused ? "Ⅱ" : "ON") : "" });
   await chrome.alarms.clear(alarmName);
   if (state.nextSwitchAt !== null) {
     // Deliberately >=30 seconds even when unpacked, to match packaged behavior.
@@ -111,6 +168,7 @@ async function selectTab(state, tabId) {
   }
 }
 async function setupCycle(windowId) {
+  await requireAccess();
   const { sites } = configuration();
   const previous = await readState();
   if (previous.entries.length) await stop(previous);
@@ -127,9 +185,7 @@ async function setupCycle(windowId) {
   resetDeadline(state);
   await commit(state);
   // Reused tabs may predate extension installation. Content initialization is idempotent.
-  await Promise.all(state.entries.map(({ tabId }) => chrome.scripting.executeScript({
-    target: { tabId }, files: ["core.js", "content.js"]
-  }).catch(() => {})));
+  await Promise.all(state.entries.map(({ tabId }) => injectTab(tabId)));
   await chrome.tabs.update(state.activeTabId, { active: true });
 }
 async function rotate(state, offset = 1) {
@@ -152,6 +208,7 @@ async function removeTab(tabId) {
   await commit(state);
 }
 async function handleMessage(message, sender) {
+  if (["getControlState", "controlCycle"].includes(message.type)) return handleControl(message, sender);
   if (["getSettings", "saveSettings", "startCycle"].includes(message.type)) return handleSettings(message, sender);
   const state = await readState();
   const tabId = sender.tab?.id;
@@ -176,21 +233,9 @@ async function handleMessage(message, sender) {
   return { success: true };
 }
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!["getCycleState", "rotationDue", "activateRelativeTab", "setPaused", "getSettings", "saveSettings", "startCycle"].includes(message?.type)) return;
+  if (!["getCycleState", "rotationDue", "activateRelativeTab", "setPaused", "getSettings", "saveSettings", "startCycle", "getControlState", "controlCycle"].includes(message?.type)) return;
   serial(() => handleMessage(message, sender)).then(sendResponse, (error) => sendResponse({ success: false, error: error.message }));
   return true;
-});
-chrome.action.onClicked.addListener((tab) => {
-  serial(async () => {
-    const state = await readState();
-    if (state.entries.length) await stop(state);
-    else if (Number.isInteger(tab.windowId)) await setupCycle(tab.windowId);
-    await chrome.action.setBadgeText({ text: "" });
-    await chrome.action.setTitle({ title: "Start or stop kiosk rotation" });
-  }).catch(async (error) => {
-    await chrome.action.setBadgeText({ text: "!" });
-    await chrome.action.setTitle({ title: `Kiosk error: ${error.message}` });
-  });
 });
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name !== alarmName) return;
@@ -219,11 +264,25 @@ chrome.tabs.onRemoved.addListener((tabId) => { serial(() => removeTab(tabId)); }
 chrome.windows.onRemoved.addListener((windowId) => {
   serial(async () => { const state = await readState(); if (state.windowId === windowId) await stop(state); });
 });
+// Scripts run only inside managed tabs and only on configured, granted hosts.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status !== "complete") return;
+  serial(async () => {
+    const state = await readState();
+    if (state.entries.some((entry) => entry.tabId === tabId)) await injectTab(tabId);
+  });
+});
+chrome.permissions.onRemoved.addListener(() => {
+  serial(async () => {
+    if ((await missingOrigins()).length) await stop(await readState());
+  });
+});
 // Tab IDs are session-specific. A browser restart intentionally requires Start.
-chrome.runtime.onStartup.addListener(() => { serial(async () => stop(await readState())); });
+chrome.runtime.onStartup.addListener(() => { serial(async () => { await stop(await readState()); await pruneAccess(); }); });
 chrome.runtime.onInstalled.addListener((details) => {
   serial(async () => {
     await stop(await readState());
+    await pruneAccess();
     if (details?.reason === "install") await chrome.runtime.openOptionsPage();
   });
 });
